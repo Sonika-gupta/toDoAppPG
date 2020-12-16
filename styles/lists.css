@@ -1,0 +1,93 @@
+main {
+    width: auto;
+    min-width: 600px;
+}
+nav button {
+    padding: 2px 10px;
+    margin: auto 0;
+}
+nav img {
+    filter: invert(1);
+}
+tab-panel button {
+    width: fit-content;
+    min-width: 90px;
+}
+button:focus {
+    outline: none;
+}
+.doneFooter {
+    background-color: ghostwhite;
+    height: 50px;
+    width: 100%;
+}
+.doneFooter > div {
+    margin: auto;
+    min-width: 410px;
+    max-width: 550px;
+}
+.emptylist {
+    position: relative;
+    top: 45%;
+    left: 30%;
+}
+.list-icon {
+    width: 150px;
+    height: 150px;
+    padding: 10px 5px;
+    box-sizing: border-box;
+    box-shadow: 0 0 0 2px rgb(78, 78, 78);
+    font-size: 0.01em;
+    box-shadow: 0 0 0 1px rgb(242, 242, 242);
+}
+.list-icon > span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 10;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: pre-line;
+}
+.list-icon-container {
+    margin: 25px;
+}
+.menu > button {
+    border-radius: 4px;
+}
+.tick {
+    height: 20px;
+    position: relative;
+    width: 30px;
+    float: right;
+    right: 10px;
+    bottom: 40px;
+}
+#context {
+    border-top: solid 1px darkgrey;
+    padding: 5px;
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+#index {
+    display: flex;
+    flex-direction: row;
+    flex-flow: wrap;
+}
+#otherTab > main, .doneButton {
+    padding: 0;
+    min-width: 410px;
+    max-width: 550px;
+}
+#edit {
+    background-color: green;
+}
+#edit button {
+    background-color: inherit;
+    margin: auto 3px;
+}
+#edit span {
+    text-align: center;
+    margin: auto;
+}

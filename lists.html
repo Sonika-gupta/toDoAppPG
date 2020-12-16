@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet" href="/styles/lists.css">
+        <link rel="stylesheet" href="/styles/index.css">
+        <link rel="stylesheet" href="/styles/tasks.css">
+        <title>To Do App PG</title>
+    </head>
+    <body>
+        <header>
+            <nav id="main">
+                <button id="newListButton" style="border-radius: 4px">New List</button>
+                <div>
+                    <button style="border-radius: 4px 0 0 4px; background-color: black;" onclick="selectTab('indexTab')">Lists</button>
+                    <button onclick="selectTab('otherTab', 'scheduled')">Scheduled
+                        <span id="scheduledCount"></span>
+                    </button>
+                    <button style="border-radius: 0 4px 4px 0" onclick="selectTab('otherTab', 'today')">Today
+                        <span id="todayCount"></span>
+                    </button>
+                </div>
+                <button id="selectButton" class="right small" onclick=enterEditMode()>
+                    <img src="/images/tick.png">
+                </button>
+                <button id="clearCompletedButton" class="right small">
+                    <img src="/images/menu.png" style="filter: invert(1);">
+                </button>
+            </nav>
+            <nav id="edit" class="menu hidden"> 
+                <span style="width: 100%;">Click a task list to select</span>
+                <button style="background-color: darkgreen", class="right small" onclick=escapeEditMode()>
+                    <img src="/images/tick.png">
+                </button>
+                <button onclick=escapeEditMode()>Cancel</button>
+            </nav>
+        </header>
+        <tab-panel>
+            <tab id="indexTab">
+                <main>
+                    <ul id="index"></ul>
+                </main>
+                <footer>
+                    <div id="context" class="menu hidden">
+                        <button id="renameListButton" style='background-color: white;' disabled>Rename</button>
+                        <button id="deleteListButton" class="right" disabled>Delete</button>
+                    </div>
+                </footer>
+            </tab>
+            <tab id="otherTab" class="hidden">
+                <main>
+                    <span class="scheduled">Today</span>
+                    <ul id="today"></ul>
+                    <span class="scheduled">Later</span>
+                    <ul id="scheduled" class="scheduled"></ul>
+                </main>
+                <footer class="scheduled">
+                    <div id="scheduledFooter" class="doneFooter">
+                        <div>
+                            <button class="doneButton light">
+                                <img src="/images/magnify.png" style="filter: opacity(0.5);"> Done 
+                                (<span id="completedCountScheduled"></span>)
+                            </button>
+                        </div>
+                    </div>
+                </footer>
+                <footer class="today">
+                    <div id="todayFooter" class="doneFooter">
+                        <div>
+                            <button class="doneButton light">
+                                <img src="/images/magnify.png" style="filter: opacity(0.5);"> Done 
+                                (<span id="completedCountToday"></span>)
+                            </button>
+                        </div>
+                    </div>
+                </footer>
+            </tab>
+        </tab-panel>
+    </body>
+    <script>
+        let tabs = Array.from(document.querySelector('tab-panel').children);
+        let buttons = Array.from(document.querySelector('nav>div').children);
+        function selectTab(selectedTab, filter) {
+            for (let i = 0; i< buttons.length; i++) {
+                buttons[i].style.backgroundColor = buttons[i] == window.event.target ? "black" : "#585454"; 
+            }
+            if (!filter) location.href = '/';
+            else {
+                tabs[0].classList.add('hidden');
+                tabs[1].classList.remove('hidden');
+                const otherFilter = filter == 'today' ? 'scheduled' : 'today';
+
+                document.querySelectorAll(`.${filter}`).forEach(node => node.classList.remove('hidden'));
+                document.querySelectorAll(`.${otherFilter}`).forEach(node => node.classList.add('hidden'));
+            }
+        }
+    </script>
+    <script type="module" src="./scripts/lists.js"></script>
+</html>
