@@ -16,6 +16,11 @@ tab-panel button {
 button:focus {
     outline: none;
 }
+span.scheduled {
+    color: #0996d0;
+    font-size: 0.8em;
+    font-weight: bold;
+}
 .doneFooter {
     background-color: ghostwhite;
     height: 50px;

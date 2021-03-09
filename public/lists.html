@@ -4,6 +4,10 @@
         <link rel="stylesheet" href="/styles/lists.css">
         <link rel="stylesheet" href="/styles/index.css">
         <link rel="stylesheet" href="/styles/tasks.css">
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+        />
         <title>To Do App PG</title>
     </head>
     <body>
@@ -50,6 +54,7 @@
                 <main>
                     <span class="scheduled">Today</span>
                     <ul id="today"></ul>
+                    <hr class="scheduled">
                     <span class="scheduled">Later</span>
                     <ul id="scheduled" class="scheduled"></ul>
                 </main>
@@ -57,7 +62,7 @@
                     <div id="scheduledFooter" class="doneFooter">
                         <div>
                             <button class="doneButton light">
-                                <img src="/images/magnify.png" style="filter: opacity(0.5);"> Done 
+                                <i class="fa fa-search-plus" style="filter: opacity(0.5);"></i> Done 
                                 (<span id="completedCountScheduled"></span>)
                             </button>
                         </div>
@@ -67,7 +72,7 @@
                     <div id="todayFooter" class="doneFooter">
                         <div>
                             <button class="doneButton light">
-                                <img src="/images/magnify.png" style="filter: opacity(0.5);"> Done 
+                                <i class="fa fa-search-plus" style="filter: opacity(0.5);"></i> Done 
                                 (<span id="completedCountToday"></span>)
                             </button>
                         </div>

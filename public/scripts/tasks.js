@@ -1,13 +1,14 @@
-import { createItem, removeItem, getDate, formatDate, expandPanel, properties, priorityColor } from './util.js'
-import { getList, getTasks, addTask, updateTask, deleteTask, clearCompletedTasks } from './app.js'
+import { createItem, removeItem, getDate, formatDate, removeTask, expandPanel, properties, priorityColor } from './util.js'
+import { getList, updateList, getTasks, addTask, updateTask, clearCompletedTasks } from './fetch.js'
 
 function setDeadline (day, task) {
   const date = getDate(day)
   day.form.deadline.value = task.deadline = date
   renderTask(day.form.deadline, task)
 }
+
 function fillData (form, task) {
-  Object.entries(properties).forEach(([key, value]) => form[key][value] = task[key])
+  Object.entries(properties).forEach(([key, value]) => (form[key][value] = task[key]))
   if (task.isComplete) {
     form.isComplete.checked = true
     form.classList.add('complete')
@@ -20,6 +21,7 @@ function fillData (form, task) {
   form.style = `border-left: solid ${priorityColor[task.priority]}`
   form.querySelector('.detail').innerHTML = formatDate(task.deadline)
 }
+
 function renderTask (changedItem, task) {
   const value = changedItem[properties[changedItem.name]]
   task[changedItem.name] = value
@@ -28,14 +30,11 @@ function renderTask (changedItem, task) {
     fillData(changedItem.form, task)
   })
 }
-function removeTask (id) {
-  deleteTask(id).then(res => {
-    console.log(res.message)
-    removeItem(`task${id}`)
-  })
-}
-function createTask (task, listId) {
-  const menu = createItem('div', { className: 'icon' }, createItem('img', { className: 'small', src: './images/menu.png' }))
+
+function createTask (task) {
+  console.log(task)
+  const menu = createItem('div', { className: 'icon' },
+    createItem('img', { className: 'small', src: './images/menu.png' }))
   const checkbox = createItem('input', {
     className: 'icon',
     type: 'checkbox',
@@ -48,7 +47,7 @@ function createTask (task, listId) {
   })
   const title = createItem('input', { className: 'text', name: 'title' })
   const date = createItem('span', { className: 'detail light', name: 'date' })
-  const expand = createItem('div', { className: 'icon expand', name: 'expand' }, createItem('img', { src: './images/down.png' }))
+  const expand = createItem('div', { className: 'icon expand', name: 'expand' }, createItem('i', { className: 'fa fa-sort-down' }))
 
   const notes = createItem('fieldset', { className: 'notes' },
     createItem('legend', {}, 'Notes'),
@@ -60,9 +59,9 @@ function createTask (task, listId) {
         type: 'button',
         style: 'border-radius: 4px 0 0 4px;',
         value: 'today',
-        onclick: (e) => setDeadline(e.target, task, listId)
+        onclick: (e) => setDeadline(e.target, task)
       }),
-      createItem('input', { type: 'button', value: 'tomorrow', onclick: (e) => setDeadline(e.target, task, listId) }),
+      createItem('input', { type: 'button', value: 'tomorrow', onclick: (e) => setDeadline(e.target, task) }),
       createItem('input', { type: 'date', style: 'border-radius: 0 4px 4px 0', name: 'deadline' })))
   const priority = createItem('fieldset', { className: 'priority' },
     createItem('legend', {}, 'Priority'),
@@ -75,10 +74,7 @@ function createTask (task, listId) {
     type: 'button',
     id: task.id,
     className: 'deleteButton bordered',
-    onclick: (e) => {
-      removeTask(task.id)
-      alert(`Task "${task.title}" Deleted`)
-    }
+    onclick: () => removeTask(task.id, `Task "${task.title}" Deleted`)
   }, 'Delete')
   const form = createItem('form', {
     id: `task${task.id}`,
@@ -92,21 +88,23 @@ function createTask (task, listId) {
   fillData(form, task)
   return form
 }
+
 function toggleFooterVisibility () {
   completedCount ? footer.classList.remove('hidden') : footer.classList.add('hidden')
   document.getElementById('completedCount').innerHTML = completedCount
 }
-function clearCompleted (listId) {
-  if(confirm(`Clear Completed Tasks in List "${list.name}"?`)) {
+
+function clearCompleted (list) {
+  if (confirm(`Clear Completed Tasks in List "${list.name}"?`)) {
     const tasks = document.querySelectorAll('form.complete')
-    clearCompletedTasks(listId).then(res => {
+    clearCompletedTasks(list.id).then(res => {
       console.log(res.message)
       tasks.forEach(task => removeItem(task.parentNode.id))
     })
     completedCount = 0
     completedVisible = false
     toggleFooterVisibility()
-    alert("Completed Tasks in this list deleted!")
+    alert('Completed Tasks in this list deleted!')
   }
 }
 
@@ -117,7 +115,7 @@ function loadList (list) {
   document.getElementsByTagName('title')[0].appendChild(document.createTextNode(list.name))
   document.getElementById('list-name').appendChild(document.createTextNode(list.name))
   document.getElementById('location').appendChild(document.createTextNode(list.location))
-  document.getElementById('clearCompletedButton').addEventListener('click', () => clearCompleted(list.id))
+  document.getElementById('clearCompletedButton').addEventListener('click', () => clearCompleted(list))
 
   const colorPicker = document.querySelector('nav>input[type=color]')
   colorPicker.addEventListener('change', (e) => {
@@ -130,7 +128,7 @@ function loadList (list) {
   getTasks(list.id).then(tasks => {
     tasks.forEach(task => {
       if (task.isComplete) completedCount++
-      ul.appendChild(document.createElement('li').appendChild(createTask(task, list.id)))
+      ul.appendChild(document.createElement('li').appendChild(createTask(task)))
     })
   })
   document.querySelector('.doneButton').addEventListener('click', () => {
@@ -139,18 +137,20 @@ function loadList (list) {
   })
   toggleFooterVisibility()
 }
-document.body.onkeyup = function (e) {
-  if (e.key == 'Enter') {
-    const input = document.getElementById('input-text')
-    if (input.value) {
-      const task = createTask(addTask(input.value, currentList), currentList)
-      document.getElementById('list').appendChild(document.createElement('li').appendChild(task))
-    }
-    input.value = ''
-  }
-}
 
-const currentList = decodeURI(window.location.href.split('/')[3])
-getList(currentList).then(list => {
+(async () => {
+  const currentList = decodeURI(window.location.href.split('/')[3])
+  const list = await getList(currentList)
   list ? loadList(list) : location.href = '/'
-})
+  document.body.onkeyup = async function (e) {
+    if (e.key === 'Enter') {
+      const input = document.getElementById('input-text')
+      if (input.value) {
+        const taskObject = await addTask(input.value, currentList)
+        const task = createTask(taskObject, currentList)
+        document.getElementById('list').appendChild(document.createElement('li').appendChild(task))
+      }
+      input.value = ''
+    }
+  }
+})()

@@ -1,5 +1,5 @@
 import { createItem, removeItem } from './util.js'
-import { getLists, newList, deleteLists, getTasks, updateList } from './app.js'
+import { getLists, newList, deleteLists, getTasks, updateList } from './fetch.js'
 import { loadOtherTabs } from './scheduled.js'
 
 async function createNewList () {
@@ -10,48 +10,52 @@ async function createNewList () {
     appendListIcon(list)
   }
 }
-function renameList () {
+
+async function renameList () {
   const target = document.querySelector('.tick:not(.hidden)').parentNode
   const newName = window.prompt('New List Name: ')
   if (newName) {
-    updateList(target.id.slice(4), 'name', newName).then(res => {
-      console.log(res.message)
-      document.querySelector(`#${target.id} > .caption`).innerHTML = newName
-    })
-  }
-  escapeEditMode()
-}
-function removeLists () {
-  if (window.confirm('Delete Selected Lists?')) {
-    const lists = document.querySelectorAll('.tick:not(.hidden)')
-    deleteLists([...lists].map(node => node.parentElement.id.slice(4))).then(res => {
-      console.log(res.message)
-      lists.forEach(list => removeItem(list.parentNode.id))
-    })
+    const res = await updateList(target.id.slice(4), 'name', newName)
+    console.log(res)
+    document.querySelector(`#${target.id} > .caption`).innerHTML = newName
     escapeEditMode()
   }
 }
+
+async function removeLists () {
+  if (window.confirm('Delete Selected Lists?')) {
+    const lists = document.querySelectorAll('.tick:not(.hidden)')
+    const res = await deleteLists([...lists].map(node => node.parentElement.id.slice(4)))
+    console.log(res)
+    lists.forEach(list => removeItem(list.parentNode.id))
+    escapeEditMode()
+  }
+}
+
 function minimap (tasks) {
   let minimap = ''
   if (tasks.length) { minimap = tasks.reduce((text, e) => (text += e.isComplete ? '' : `${e.title}\n`), '') }
   return minimap.length ? createItem('span', {}, minimap) : createItem('span', { className: 'emptylist' }, 'No tasks')
 }
+
 function selectList (listId) {
   if (!editMode) enterEditMode()
   const container = document.getElementById(`list${listId}`)
   container.selected = !container.selected
   document.querySelector(`#list${listId}>.tick`).classList.toggle('hidden')
   selectedCount += container.selected ? 1 : -1
-  renameListButton.disabled = selectedCount != 1
+  renameListButton.disabled = selectedCount !== 1
   deleteListButton.disabled = personalList.selected || !selectedCount
   deleteListButton.disabled ? deleteListButton.classList.remove('deleteButton') : deleteListButton.classList.add('deleteButton')
 }
+
 function enterEditMode () {
   editMode = true
   document.querySelector('#main').classList.add('hidden')
   document.querySelector('#edit.menu').classList.remove('hidden')
   document.querySelector('#context.menu').classList.remove('hidden')
 }
+
 function escapeEditMode () {
   editMode = false
   document.querySelector('#main').classList.remove('hidden')
@@ -61,8 +65,9 @@ function escapeEditMode () {
   document.querySelectorAll('.list-icon-container').forEach(container => (container.selected = false))
   selectedCount = 0
 }
+
 function appendListIcon (list, tasks = []) {
-  // console.log(list)
+  // console.log('listicon', tasks)
   const listIcon = createItem('div', {
     id: 'list' + list.id,
     className: 'list-icon-container',
@@ -85,26 +90,27 @@ function appendListIcon (list, tasks = []) {
   )
   document.getElementById('index').appendChild(listIcon)
 }
-document.body.onkeydown = function (e) {
-  if (e.key === 'Escape') escapeEditMode()
-}
 
 let renameListButton; let deleteListButton; let personalList; let selectedCount = 0; let editMode = false;
 
-(function load () {
-  getLists().then(lists => {
-    console.log(lists)
-    document.getElementById('newListButton').addEventListener('click', createNewList)
-    renameListButton = document.getElementById('renameListButton')
-    renameListButton.addEventListener('click', renameList)
-    deleteListButton = document.getElementById('deleteListButton')
-    deleteListButton.addEventListener('click', removeLists)
+(async function load () {
+  const lists = await getLists()
+  document.getElementById('newListButton').addEventListener('click', createNewList)
+  renameListButton = document.getElementById('renameListButton')
+  renameListButton.addEventListener('click', renameList)
+  deleteListButton = document.getElementById('deleteListButton')
+  deleteListButton.addEventListener('click', removeLists)
 
-    Object.values(lists).forEach((list) => {
-      appendListIcon(list, getTasks(list.id))
+  Object.values(lists).forEach((list) => {
+    getTasks(list.id).then(tasks => {
+      appendListIcon(list, tasks)
     })
-    personalList = document.getElementById('list0')
-    Object.assign(window, { enterEditMode, escapeEditMode })
-    loadOtherTabs(lists)
   })
-}())
+  personalList = document.getElementById('list0')
+  Object.assign(window, { enterEditMode, escapeEditMode })
+  loadOtherTabs(lists)
+
+  document.body.onkeydown = function (e) {
+    if (e.key === 'Escape') escapeEditMode()
+  }
+})()

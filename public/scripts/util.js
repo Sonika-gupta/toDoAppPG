@@ -1,3 +1,5 @@
+import { deleteTask } from './fetch.js'
+
 const priorityColor = {
   none: ' 1px #e0e0e0',
   low: '5px #3465a4',
@@ -26,12 +28,18 @@ function removeItem (id) {
   const item = document.getElementById(id)
   item.parentNode.removeChild(item)
 }
-
+function removeTask (id, message) {
+  deleteTask(id).then(res => {
+    console.log(res.message)
+    removeItem(`task${id}`)
+    alert(message)
+  })
+}
 function formatDate (date) {
   // date format: yyyy-mm-dd
   // displayDate format: dd/mm/yyyy or 'today' or 'tomorrow'
   if (!date) return ''
-  const [yyyy, mm, dd] = date.split('-')
+  const [yyyy, mm, dd] = date.slice(0, 10).split('-')
   const today = new Date()
   if (yyyy == today.getFullYear() && mm == today.getMonth() + 1) {
     if (dd == today.getDate()) return 'today'
@@ -47,7 +55,9 @@ function getDate (day) {
   date = date.split('/').reduce((deadline, term) => (deadline = term + '-' + deadline))
   return date
 }
-
+function isDeadlineToday (task) {
+  return formatDate(task.deadline) == 'today'
+}
 function expandPanel () {
   const panel = this.nextElementSibling
   if (panel.classList.contains('active')) {
@@ -61,4 +71,4 @@ function expandPanel () {
   }
 }
 
-export { createItem, removeItem, formatDate, getDate, expandPanel, properties, priorityColor }
+export { createItem, removeItem, formatDate, getDate, isDeadlineToday, removeTask, expandPanel, properties, priorityColor }

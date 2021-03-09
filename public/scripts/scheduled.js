@@ -1,5 +1,5 @@
-import { createItem, removeItem, expandPanel, getDate, formatDate, properties, priorityColor } from './util.js'
-import { app } from './app2.js'
+import { createItem, removeItem, removeTask, expandPanel, getDate, isDeadlineToday, properties, priorityColor } from './util.js'
+import { getScheduledTasks, addTask, updateTask, clearCompletedTasks } from './fetch.js'
 
 function moveTask (form, task) {
   form.parentNode.removeChild(form)
@@ -9,27 +9,23 @@ function moveTask (form, task) {
     scheduled.appendChild(document.createElement('li').appendChild(form))
   }
 }
-function isDeadlineToday (task) {
-  return formatDate(task.deadline) == 'today'
-}
-function setDeadline (day, task, listId) {
+
+function setDeadline (day, task) {
   const date = getDate(day)
   day.form.deadline.value = task.deadline = date
-  updateTask(day.form.deadline, task, listId)
+  renderTask(day.form.deadline, task)
 }
 
-function removeTask (id, listId) {
-  app.deleteTask(id, listId)
-  removeItem(`list${listId}task${id}`)
+function renderTask (changedItem, task) {
+  const value = changedItem[properties[changedItem.name]]
+  task[changedItem.name] = value
+  updateTask(task.id, changedItem.name, value).then(res => {
+    console.log(res.message)
+    fillData(changedItem.form, task)
+    moveTask(changedItem.form, task)
+  })
 }
-function updateTask (changedItem, task, listId) {
-  task[changedItem.name] = changedItem[properties[changedItem.name]]
-  fillData(changedItem.form, task)
-  moveTask(changedItem.form, task)
-  app.updateTask(task, listId)
-  toggleFooterVisibility()
-  updateCount()
-}
+
 function fillData (form, task) {
   Object.entries(properties).forEach(([key, value]) => (form[key][value] = task[key]))
   if (task.isComplete) {
@@ -43,7 +39,8 @@ function fillData (form, task) {
   }
   form.style = `border-left: solid ${priorityColor[task.priority]}`
 }
-function createTask (task, listId, listName) {
+
+function createTask (task, list) {
   const checkbox = createItem('input', {
     className: 'icon',
     type: 'checkbox',
@@ -51,8 +48,8 @@ function createTask (task, listId, listName) {
     onclick: (e) => e.stopPropagation()
   })
   const title = createItem('input', { className: 'text', name: 'title' })
-  const list = createItem('div', { className: 'detail light', name: 'list' }, listName)
-  const expand = createItem('div', { className: 'icon expand', name: 'expand' }, createItem('img', { src: './images/down.png' }))
+  const listName = createItem('span', { className: 'detail light', name: 'list' }, list.name)
+  const expand = createItem('div', { className: 'icon expand', name: 'expand' }, createItem('i', { className: 'fa fa-sort-down' }))
 
   const notes = createItem('fieldset', { className: 'notes' },
     createItem('legend', {}, 'Notes'),
@@ -64,9 +61,9 @@ function createTask (task, listId, listName) {
         type: 'button',
         style: 'border-radius: 4px 0 0 4px;',
         value: 'today',
-        onclick: (e) => setDeadline(e.target, task, listId)
+        onclick: (e) => setDeadline(e.target, task)
       }),
-      createItem('input', { type: 'button', value: 'tomorrow', onclick: (e) => setDeadline(e.target, task, listId) }),
+      createItem('input', { type: 'button', value: 'tomorrow', onclick: (e) => setDeadline(e.target, task) }),
       createItem('input', { type: 'date', style: 'border-radius: 0 4px 4px 0', name: 'deadline' })))
   const priority = createItem('fieldset', { className: 'priority' },
     createItem('legend', {}, 'Priority'),
@@ -78,36 +75,35 @@ function createTask (task, listId, listName) {
   const deleteButton = createItem('button', {
     type: 'button',
     className: 'deleteButton bordered',
-    onclick: (e) => {
-      removeTask(task.id, listId)
-      window.alert(`Task "${task.title}" from "${listName}" Deleted`)
-    }
+    onclick: () => removeTask(task.id, `Task "${task.title}" from "${list.name}" Deleted`)
   }, 'Delete')
   const form = createItem('form', {
-    id: `list${listId}task${task.id}`,
+    id: `task${task.id}`,
     className: 'spaced bordered task-container',
-    onchange: (e) => updateTask(e.target, task, listId),
+    onchange: (e) => renderTask(e.target, task),
     onsubmit: (e) => e.preventDefault()
   },
-  createItem('div', { className: 'title-bar spaced', onclick: expandPanel }, checkbox, title, list, expand),
+  createItem('div', { className: 'title-bar spaced', onclick: expandPanel }, checkbox, title, listName, expand),
   createItem('div', { className: 'panel' }, notes, deadline, priority, deleteButton))
 
   fillData(form, task)
   return form
 }
-function clearCompleted (lists) {
-  if (window.confirm('Clear All Completed Tasks?')) {
-    Object.entries(lists).forEach(([listId, list]) => {
-      list.tasks.forEach(task => {
-        if (task.isComplete) removeTask(task.id, listId)
-      })
+
+function clearCompleted () {
+  if (confirm('Clear Completed Tasks all lists?')) {
+    const tasks = document.querySelectorAll('form.complete')
+    clearCompletedTasks().then(res => {
+      console.log(res.message)
+      tasks.forEach(task => removeItem(task.parentNode.id))
     })
+    completedCount = 0
     completedVisible = false
     toggleFooterVisibility()
-    updateCount()
-    window.alert('All Completed Tasks deleted!')
+    alert('All Completed Tasks deleted!')
   }
 }
+
 function toggleFooterVisibility () {
   completedCountToday = document.querySelectorAll('#today form.complete').length
   completedCountScheduled = completedCountToday + document.querySelectorAll('#scheduled form.complete').length
@@ -116,16 +112,32 @@ function toggleFooterVisibility () {
   document.getElementById('completedCountScheduled').innerHTML = completedCountScheduled
   document.getElementById('completedCountToday').innerHTML = completedCountToday
 }
+
 function listOptions (lists) {
-  return Object.entries(lists).map(([listId, list]) => {
-    return createItem('option', { style: `background-color: ${list.color}`, value: listId }, list.name)
+  return Object.values(lists).map(list => {
+    return createItem('option', { style: `background-color: ${list.color}`, value: list.id }, list.name)
   })
 }
+
 function updateCount () {
   todayCount = document.querySelectorAll('#today form').length
+  console.log(todayCount)
+  if (todayCount) {
+    document.querySelector('span.scheduled').classList.remove('hidden')
+    document.getElementById('todayCount').innerHTML = `(${todayCount})`
+  } else {
+    document.querySelector('span.scheduled').classList.add('hidden')
+  }
+
   scheduledCount = todayCount + document.querySelectorAll('#scheduled form').length
+
   if (scheduledCount) document.getElementById('scheduledCount').innerHTML = `(${scheduledCount})`
-  if (todayCount) document.getElementById('todayCount').innerHTML = `(${todayCount})`
+  if (scheduledCount === todayCount) {
+    document.querySelector('span.scheduled:last-of-type').classList.add('hidden')
+  } else {
+    document.querySelector('span.scheduled:last-of-type').classList.remove('hidden')
+  }
+  console.log(scheduledCount)
 }
 const scheduled = document.getElementById('scheduled')
 const today = document.getElementById('today')
@@ -134,20 +146,37 @@ const todayFooter = document.getElementById('todayFooter')
 let scheduledCount = 0; let todayCount = 0; let completedCountScheduled = 0; let completedCountToday = 0; let completedVisible = false
 
 function loadOtherTabs (lists) {
-  document.getElementById('clearCompletedButton').addEventListener('click', () => clearCompleted(lists))
-
-  Object.entries(lists).forEach(([listId, list]) => {
-    list.tasks.forEach(task => {
+  document.getElementById('clearCompletedButton').addEventListener('click', () => clearCompleted())
+  getScheduledTasks().then(tasks => {
+    tasks.forEach(task => {
+      console.log(task.deadline)
+      const list = lists.find(list => list.id === task.listid)
       if (task.isComplete) {
         completedCountScheduled++
         if (isDeadlineToday(task)) completedCountToday++
       }
       if (isDeadlineToday(task)) {
-        today.appendChild(document.createElement('li').appendChild(createTask(task, listId, list.name)))
-      } else if (task.deadline) {
-        scheduled.appendChild(document.createElement('li').appendChild(createTask(task, listId, list.name)))
+        today.appendChild(document.createElement('li').appendChild(createTask(task, list)))
+      } else {
+        scheduled.appendChild(document.createElement('li').appendChild(createTask(task, list)))
       }
     })
+    updateCount()
+    toggleFooterVisibility()
+    document.body.onkeyup = function (e) {
+      if (e.key == 'Enter') {
+        const input = document.getElementById('input-text')
+        const listId = document.getElementById('listId')
+        console.log(listId)
+        if (input.value) {
+          const task = createTask(addTask(input.value, listId.value, getDate('today')), { name: listId.options[listId.selectedIndex].text })
+          scheduled.appendChild(document.createElement('li').appendChild(task))
+          today.appendChild(document.createElement('li').appendChild(task))
+          updateCount()
+        }
+        input.value = ''
+      }
+    }
   })
   const newTask = createItem('div', { className: 'bordered', id: 'new-task' },
     createItem('div', { className: 'icon' },
@@ -161,22 +190,6 @@ function loadOtherTabs (lists) {
       document.querySelectorAll('form.complete').forEach(form => form.classList.toggle('hidden'))
       completedVisible = true
     }))
-  updateCount()
-  toggleFooterVisibility()
-
-  document.body.onkeyup = function (e) {
-    if (e.key == 'Enter') {
-      const input = document.getElementById('input-text')
-      const listId = document.getElementById('listId').value
-      if (input.value) {
-        const task = createTask(app.addTask({ title: input.value, deadline: getDate('today') }, listId), listId, lists[listId].name)
-        scheduled.appendChild(document.createElement('li').appendChild(task))
-        today.appendChild(document.createElement('li').appendChild(task))
-        updateCount()
-      }
-      input.value = ''
-    }
-  }
 }
 
 export { loadOtherTabs }
